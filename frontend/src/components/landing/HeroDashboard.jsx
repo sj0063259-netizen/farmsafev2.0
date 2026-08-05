@@ -26,7 +26,7 @@ export default function HeroDashboard() {
 
   const API =
     import.meta.env.VITE_API_URL ||
-    "https://smart-rural-enviroment-farm-2.onrender.com";
+    "https://farmsafev2-0.onrender.com";
 
   const soilCondition =
     sensorData.soil == null

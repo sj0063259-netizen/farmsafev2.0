@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://smart-rural-enviroment-farm-2.onrender.com/api",
+  baseURL: "https://farmsafev2-0.onrender.com",
   timeout: 5000,
 });
 
