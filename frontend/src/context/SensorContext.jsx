@@ -1,27 +1,22 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
 import { getLatestData } from "../services/api";
 import socket from "../services/socket";
 
 const SensorContext = createContext();
 
-// ==============================
-// Pump Configuration
-// ==============================
-
 const SOIL_THRESHOLD = 55;
-const PUMP_MODE = "AUTO";
-
-// ==============================
-// Helper Function
-// ==============================
 
 function getPumpStatus(soil) {
   if (soil == null) return false;
 
-  // Ignore invalid readings
   if (soil < 0 || soil > 100) return false;
 
-  // Pump ON if soil is dry
   return soil < SOIL_THRESHOLD;
 }
 
@@ -34,7 +29,7 @@ export function SensorProvider({ children }) {
     battery: null,
 
     pumpStatus: false,
-    mode: PUMP_MODE,
+    mode: "AUTO",
 
     connected: false,
     lastUpdated: null,
@@ -43,11 +38,6 @@ export function SensorProvider({ children }) {
   });
 
   useEffect(() => {
-
-    // ==============================
-    // Load Latest Data
-    // ==============================
-
     async function loadLatestData() {
       try {
         const response = await getLatestData();
@@ -55,18 +45,14 @@ export function SensorProvider({ children }) {
         if (!response?.success) return;
 
         const latestData = response.data;
+        const currentTime = new Date().toLocaleTimeString();
 
-        const currentTime = new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-
-        setSensorData({
+        setSensorData((prev) => ({
+          ...prev,
           ...latestData,
 
+          // AUTO mode decides initial pump state
           pumpStatus: getPumpStatus(latestData.soil),
-          mode: PUMP_MODE,
 
           connected: true,
           lastUpdated: currentTime,
@@ -77,32 +63,18 @@ export function SensorProvider({ children }) {
               time: currentTime,
             },
           ],
-        });
-
-      } catch (error) {
-        console.error("❌ Failed to load latest sensor data", error);
+        }));
+      } catch (err) {
+        console.error(err);
       }
     }
 
     loadLatestData();
 
-    // ==============================
-    // Live ESP32 Data
-    // ==============================
-
     socket.on("sensorData", (data) => {
-
-      console.log("📡 Live Sensor Data:", data);
-
-      const currentTime = new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
+      const currentTime = new Date().toLocaleTimeString();
 
       setSensorData((prev) => {
-
-        // Keep previous soil value if received value is invalid
         const soil =
           data.soil == null ||
           data.soil < 0 ||
@@ -111,16 +83,18 @@ export function SensorProvider({ children }) {
             : data.soil;
 
         return {
+          ...prev,
           ...data,
-
           soil,
 
-          pumpStatus: getPumpStatus(soil),
-
-          mode: PUMP_MODE,
+          // AUTO controls pump
+          // MANUAL keeps user's last selection
+          pumpStatus:
+            prev.mode === "AUTO"
+              ? getPumpStatus(soil)
+              : prev.pumpStatus,
 
           connected: true,
-
           lastUpdated: currentTime,
 
           history: [
@@ -133,30 +107,20 @@ export function SensorProvider({ children }) {
           ].slice(-20),
         };
       });
-
     });
-
-    // ==============================
-    // Socket Connected
-    // ==============================
 
     socket.on("connect", () => {
-      console.log("🟢 Connected to Backend");
+      setSensorData((prev) => ({
+        ...prev,
+        connected: true,
+      }));
     });
 
-    // ==============================
-    // Socket Disconnected
-    // ==============================
-
     socket.on("disconnect", () => {
-
-      console.log("🔴 Backend Disconnected");
-
       setSensorData((prev) => ({
         ...prev,
         connected: false,
       }));
-
     });
 
     return () => {
@@ -164,11 +128,43 @@ export function SensorProvider({ children }) {
       socket.off("connect");
       socket.off("disconnect");
     };
-
   }, []);
 
+  // ==========================
+  // MODE CHANGE
+  // ==========================
+  const setMode = (mode) => {
+    setSensorData((prev) => ({
+      ...prev,
+      mode,
+
+      // When returning to AUTO,
+      // immediately calculate pump status
+      pumpStatus:
+        mode === "AUTO"
+          ? getPumpStatus(prev.soil)
+          : prev.pumpStatus,
+    }));
+  };
+
+  // ==========================
+  // MANUAL PUMP CONTROL
+  // ==========================
+  const setPumpStatus = (status) => {
+    setSensorData((prev) => ({
+      ...prev,
+      pumpStatus: status,
+    }));
+  };
+
   return (
-    <SensorContext.Provider value={sensorData}>
+    <SensorContext.Provider
+      value={{
+        ...sensorData,
+        setMode,
+        setPumpStatus,
+      }}
+    >
       {children}
     </SensorContext.Provider>
   );

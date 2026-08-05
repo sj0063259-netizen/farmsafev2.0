@@ -18,6 +18,24 @@ function validateSensorData(data) {
         }
     }
 
+    // ==========================
+    // Optional Pump Validation
+    // ==========================
+
+    if (
+        data.pumpStatus !== undefined &&
+        typeof data.pumpStatus !== "boolean"
+    ) {
+        return "pumpStatus must be boolean.";
+    }
+
+    if (
+        data.mode !== undefined &&
+        !["AUTO", "MANUAL"].includes(data.mode)
+    ) {
+        return "Invalid mode.";
+    }
+
     return null;
 }
 

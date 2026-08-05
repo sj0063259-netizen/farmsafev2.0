@@ -13,11 +13,20 @@ import {
 import { useSensor } from "../../context/SensorContext";
 
 export default function HeroDashboard() {
-  const sensorData = useSensor();
+  const {
+    mode,
+    setMode,
+    pumpStatus,
+    setPumpStatus,
+    ...sensorData
+  } = useSensor();
 
-  const pumpStatus = sensorData.pumpStatus;
-  const automationMode = sensorData.mode;
   const battery = sensorData.battery;
+  const lastUpdated = sensorData.lastUpdated ?? "--:--:--";
+
+  const API =
+    import.meta.env.VITE_API_URL ||
+    "https://smart-rural-enviroment-farm-2.onrender.com";
 
   const soilCondition =
     sensorData.soil == null
@@ -31,12 +40,38 @@ export default function HeroDashboard() {
   const irrigationAction =
     !sensorData.connected
       ? "Waiting for Sensor Data"
+      : mode === "AUTO"
+      ? pumpStatus
+        ? "Automatic Irrigation Running"
+        : "Monitoring Soil"
       : pumpStatus
-      ? "Irrigation Running"
-      : "Monitoring Soil";
+      ? "Pump Running (Manual)"
+      : "Manual Control Enabled";
 
-  const lastUpdated =
-    sensorData.lastUpdated ?? "--:--:--";
+  const controlPump = async (action) => {
+    try {
+      const response = await fetch(`${API}/api/pump`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action,
+          mode,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setPumpStatus(action === "ON");
+      }
+
+      console.log(data);
+    } catch (err) {
+      console.error("Pump Control Error:", err);
+    }
+  };
 
   return (
     <section
@@ -50,10 +85,9 @@ export default function HeroDashboard() {
           <SensorCards />
         </div>
 
-        {/* Smart Irrigation Controller */}
-
         <div className="mt-8 rounded-3xl border border-slate-700 bg-[#0F172A] p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
             <div className="flex items-center gap-2">
               <Bot className="text-green-400" size={22} />
 
@@ -63,33 +97,57 @@ export default function HeroDashboard() {
                 </h3>
 
                 <p className="text-sm text-slate-400">
-                  Automated irrigation monitoring
+                  Automatic & Manual Pump Control
                 </p>
               </div>
             </div>
 
-            <span className="rounded-full bg-violet-500/10 px-3 py-1 text-sm font-semibold text-violet-400">
-              {automationMode}
-            </span>
+            <div className="flex overflow-hidden rounded-xl border border-slate-600">
+
+              <button
+                onClick={() => setMode("AUTO")}
+                className={`px-4 py-2 text-sm font-semibold transition ${
+                  mode === "AUTO"
+                    ? "bg-violet-600 text-white"
+                    : "bg-slate-800 text-slate-400"
+                }`}
+              >
+                AUTO
+              </button>
+
+              <button
+                onClick={() => setMode("MANUAL")}
+                className={`px-4 py-2 text-sm font-semibold transition ${
+                  mode === "MANUAL"
+                    ? "bg-violet-600 text-white"
+                    : "bg-slate-800 text-slate-400"
+                }`}
+              >
+                MANUAL
+              </button>
+
+            </div>
+
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {/* Pump */}
 
             <div className="rounded-2xl bg-slate-800/40 p-4">
+
               <div className="flex items-center gap-2">
                 <Power
+                  size={20}
                   className={
                     pumpStatus
                       ? "text-green-400"
                       : "text-slate-500"
                   }
-                  size={20}
                 />
 
                 <span className="text-slate-300">
                   Pump Status
                 </span>
+
               </div>
 
               <p
@@ -101,11 +159,11 @@ export default function HeroDashboard() {
               >
                 {pumpStatus ? "Running" : "Standby"}
               </p>
+
             </div>
 
-            {/* Soil */}
-
             <div className="rounded-2xl bg-slate-800/40 p-4">
+
               <div className="flex items-center gap-2">
                 <Sprout
                   className="text-green-400"
@@ -115,16 +173,17 @@ export default function HeroDashboard() {
                 <span className="text-slate-300">
                   Soil Condition
                 </span>
+
               </div>
 
               <p className="mt-3 text-xl font-bold text-white">
                 {soilCondition}
               </p>
+
             </div>
 
-            {/* Action */}
-
             <div className="rounded-2xl bg-slate-800/40 p-4">
+
               <div className="flex items-center gap-2">
                 <Bot
                   className="text-cyan-400"
@@ -134,16 +193,17 @@ export default function HeroDashboard() {
                 <span className="text-slate-300">
                   Current Action
                 </span>
+
               </div>
 
               <p className="mt-3 text-lg font-semibold text-cyan-400">
                 {irrigationAction}
               </p>
+
             </div>
 
-            {/* Battery */}
-
             <div className="rounded-2xl bg-slate-800/40 p-4">
+
               <div className="flex items-center gap-2">
                 <BatteryCharging
                   className="text-yellow-400"
@@ -153,23 +213,58 @@ export default function HeroDashboard() {
                 <span className="text-slate-300">
                   Battery
                 </span>
+
               </div>
 
               <p className="mt-3 text-xl font-bold text-white">
-                {battery ?? 91}%
+                {battery ?? "--"}%
               </p>
+
             </div>
+
           </div>
+
+          {mode === "MANUAL" && (
+
+            <div className="mt-8">
+
+              <h4 className="mb-4 font-semibold text-white">
+                Manual Pump Controls
+              </h4>
+
+              <div className="flex flex-wrap gap-4">
+
+                <button
+                  onClick={() => controlPump("ON")}
+                  className="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition hover:bg-green-700"
+                >
+                  Start Pump
+                </button>
+
+                <button
+                  onClick={() => controlPump("OFF")}
+                  className="rounded-xl bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
+                >
+                  Stop Pump
+                </button>
+
+              </div>
+
+            </div>
+
+          )}
 
           <div className="mt-6 flex items-center gap-2 text-sm text-slate-400">
             <Clock size={16} />
             Last Updated : {lastUpdated}
           </div>
+
         </div>
 
         <div className="mt-8">
           <DashboardChart />
         </div>
+
       </div>
     </section>
   );

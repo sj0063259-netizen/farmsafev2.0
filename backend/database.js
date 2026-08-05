@@ -19,6 +19,8 @@ db.serialize(() => {
             soil REAL,
             airQuality REAL,
             battery REAL,
+            pumpStatus INTEGER DEFAULT 0,
+            mode TEXT DEFAULT 'AUTO',
             createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
@@ -28,8 +30,8 @@ db.serialize(() => {
 function saveSensorData(data, callback) {
     const query = `
         INSERT INTO sensor_data
-        (temperature, humidity, soil, airQuality, battery)
-        VALUES (?, ?, ?, ?, ?)
+        (temperature, humidity, soil, airQuality, battery, pumpStatus, mode)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.run(
@@ -39,7 +41,9 @@ function saveSensorData(data, callback) {
             data.humidity,
             data.soil,
             data.airQuality,
-            data.battery
+            data.battery,
+            Boolean(data.pumpStatus),
+            data.mode ?? "AUTO"
         ],
         callback
     );
