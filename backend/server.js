@@ -20,6 +20,7 @@ const app = express();
 const server = http.createServer(app);
 initializeSocket(server);
 const PORT = process.env.PORT || 5000;
+
 // ======================================
 // Pump Controller
 // ======================================
@@ -79,15 +80,17 @@ pumpState.lastHeartbeat = new Date().toISOString();
 
     saveSensorData(sensorData, function(err) {
 
-        if (err) {
-          console.error(err);
+      if (err) {
 
-            return res.status(500).json({
-                success: false,
-                message: "Failed to save sensor data."
-            });
-        }
+    console.error("❌ Database Error:", err.message);
+    console.error(err);
 
+    return res.status(500).json({
+        success: false,
+        message: "Failed to save sensor data."
+    });
+
+}
         console.log("📡 Sensor Data Received:");
         console.table(sensorData);
 sendSensorData(sensorData);
@@ -186,6 +189,22 @@ app.get("/api/pump-status", (req, res) => {
         success: true,
         action: pumpState.action,
         mode: pumpState.mode
+    });
+
+});
+const sqlite3 = require("sqlite3").verbose();
+const db = new sqlite3.Database("./farmsafe.db");
+
+app.get("/api/schema", (req, res) => {
+
+    db.all("PRAGMA table_info(sensor_data)", [], (err, rows) => {
+
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+
+        res.json(rows);
+
     });
 
 });
