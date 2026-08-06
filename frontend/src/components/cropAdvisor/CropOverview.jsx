@@ -33,7 +33,6 @@ function getStatusColor(status) {
 function CropOverview({ crop, sensor, analysis }) {
   return (
     <div className="mt-10 grid gap-6 lg:grid-cols-3">
-
       {/* ==========================
             Crop Information
       ========================== */}

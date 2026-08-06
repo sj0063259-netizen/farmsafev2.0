@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-    baseURL: "https://farmsafev2-0.onrender.com"
+    baseURL: "https://farmsafev2-0.onrender.coms"
 });
 
 export const getLatestSensorData = () =>
