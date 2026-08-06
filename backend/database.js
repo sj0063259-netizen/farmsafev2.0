@@ -11,19 +11,25 @@ const db = new sqlite3.Database("./farmsafe.db", (err) => {
 
 // Create table if it doesn't exist
 db.serialize(() => {
+
     db.run(`
-        CREATE TABLE IF NOT EXISTS sensor_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            temperature REAL,
-            humidity REAL,
-            soil REAL,
-            airQuality REAL,
-            battery REAL,
-            pumpStatus INTEGER DEFAULT 0,
-            mode TEXT DEFAULT 'AUTO',
-            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+        ALTER TABLE sensor_data
+        ADD COLUMN pumpStatus INTEGER DEFAULT 0
+    `, (err) => {
+        if (err && !err.message.includes("duplicate column")) {
+            console.error(err.message);
+        }
+    });
+
+    db.run(`
+        ALTER TABLE sensor_data
+        ADD COLUMN mode TEXT DEFAULT 'AUTO'
+    `, (err) => {
+        if (err && !err.message.includes("duplicate column")) {
+            console.error(err.message);
+        }
+    });
+
 });
 
 // Save sensor data
